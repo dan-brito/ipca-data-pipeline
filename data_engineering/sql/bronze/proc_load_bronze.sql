@@ -42,10 +42,8 @@ INSERT INTO bronze.ipca_1737_raw (
     variavel_nome,
     mes_codigo,
     mes_nome,
-
-    -- Brazil-specific fields
-    brasil_codigo,
-    brasil_nome
+    localidade_codigo,
+    localidade_nome
 )
 SELECT
     NULLIF(elem->>'NC', '')::integer,
@@ -76,10 +74,10 @@ INSERT INTO bronze.ipca_7060_raw (
     variavel_nome,
     mes_codigo,
     mes_nome,
-
-    -- Regional-specific fields
     localidade_codigo,
     localidade_nome,
+
+    -- Regional-specific fields
     classificacao_codigo,
     classificacao_nome
 )

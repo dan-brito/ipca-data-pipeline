@@ -14,10 +14,8 @@ CREATE TABLE IF NOT EXISTS bronze.ipca_1737_raw (
     variavel_nome TEXT,
     mes_codigo INTEGER,
     mes_nome TEXT,
-
-    -- Brazil-specific fields
-    brasil_codigo INTEGER,
-    brasil_nome TEXT,
+    localidade_codigo INTEGER,
+    localidade_nome TEXT,
 
     -- Lineage metadata
     source_table INTEGER DEFAULT 1737,
@@ -35,10 +33,10 @@ CREATE TABLE IF NOT EXISTS bronze.ipca_7060_raw (
     variavel_nome TEXT,
     mes_codigo INTEGER,
     mes_nome TEXT,
-
-    -- Regional-specific fields
     localidade_codigo INTEGER,
     localidade_nome TEXT,
+
+    -- Regional-specific fields
     classificacao_codigo INTEGER,
     classificacao_nome TEXT,
 

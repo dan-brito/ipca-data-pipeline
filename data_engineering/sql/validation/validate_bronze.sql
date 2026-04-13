@@ -76,8 +76,8 @@ BEGIN
         variavel_nome,
         mes_codigo,
         mes_nome,
-        brasil_codigo,
-        brasil_nome
+        localidade_codigo,
+        localidade_nome
     ) > 0;
 
     SELECT COUNT(*)
