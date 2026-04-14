@@ -1,81 +1,52 @@
-CREATE TABLE IF NOT EXISTS silver.dim_tempo (
-    mes_codigo INTEGER PRIMARY KEY,
-    mes_data DATE NOT NULL UNIQUE,
-    ano INTEGER NOT NULL,
-    mes_numero INTEGER NOT NULL,
-    mes_nome TEXT NOT NULL,
-    CONSTRAINT dim_tempo_mes_codigo_chk
-        CHECK (mes_codigo BETWEEN 100001 AND 999912),
-    CONSTRAINT dim_tempo_mes_numero_chk
-        CHECK (mes_numero BETWEEN 1 AND 12)
+-- Silver layer dimension and fact tables for IPCA data.
+-- `dim_month` stores the month reference data (temporal dimension).
+-- `dim_location` stores the location reference data (geographic dimension).
+-- `fact_ipca_index_number_brazil` stores the national IPCA index numbers.
+-- `fact_ipca_monthly_variation_regional` stores the monthly regional variations.
+
+-- Dimension table for temporal context
+CREATE TABLE IF NOT EXISTS silver.dim_month (
+    month_code INTEGER,
+    month_date DATE NOT NULL,
+    CONSTRAINT dim_month_pk PRIMARY KEY (month_code),
+    CONSTRAINT dim_month_month_date_uk UNIQUE (month_date) -- Ensures each unique month appears only once
 );
 
-CREATE TABLE IF NOT EXISTS silver.dim_variavel (
-    variavel_codigo INTEGER PRIMARY KEY,
-    variavel_nome TEXT NOT NULL
+-- Dimension table for geographic context
+CREATE TABLE IF NOT EXISTS silver.dim_location (
+    location_id INTEGER GENERATED ALWAYS AS IDENTITY,
+    location_code INTEGER NOT NULL,
+    location_name TEXT NOT NULL,
+    territorial_level_code INTEGER NOT NULL,
+    territorial_level_name TEXT NOT NULL,
+    CONSTRAINT dim_location_pk PRIMARY KEY (location_id),
+    CONSTRAINT dim_location_bk_uk UNIQUE (territorial_level_code,location_code) -- Ensures no duplicate locations by territorial level and code
 );
 
-CREATE TABLE IF NOT EXISTS silver.dim_unidade_medida (
-    unidade_medida_codigo INTEGER PRIMARY KEY,
-    unidade_medida_nome TEXT NOT NULL
+-- Fact table for national IPCA index numbers
+CREATE TABLE IF NOT EXISTS silver.fact_ipca_index_number_brazil (
+    month_code INTEGER NOT NULL,
+    location_id INTEGER NOT NULL,
+    index_number NUMERIC(15,6) NOT NULL,
+    loaded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fact_ipca_index_number_brazil_dim_month_fk
+        FOREIGN KEY (month_code) REFERENCES silver.dim_month (month_code),
+    CONSTRAINT fact_ipca_index_number_brazil_dim_location_fk
+        FOREIGN KEY (location_id) REFERENCES silver.dim_location (location_id),
+    CONSTRAINT fact_ipca_index_number_brazil_grain_uk
+        UNIQUE (month_code, location_id) -- Ensures single index number per month and location combination
 );
 
-CREATE TABLE IF NOT EXISTS silver.dim_localidade (
-    localidade_codigo INTEGER PRIMARY KEY,
-    localidade_nome TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS silver.fato_ipca_brasil (
-    mes_codigo INTEGER NOT NULL,
-    variavel_codigo INTEGER NOT NULL,
-    unidade_medida_codigo INTEGER NOT NULL,
-    nivel_territorial_codigo INTEGER NOT NULL,
-    nivel_territorial_nome TEXT NOT NULL,
-    brasil_codigo INTEGER NOT NULL,
-    brasil_nome TEXT NOT NULL,
-    valor NUMERIC(15,6) NOT NULL,
-    source_table INTEGER NOT NULL DEFAULT 1737,
-    loaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fato_ipca_brasil_pk
-        PRIMARY KEY (mes_codigo, variavel_codigo, unidade_medida_codigo, brasil_codigo),
-    CONSTRAINT fato_ipca_brasil_source_table_chk
-        CHECK (source_table = 1737),
-    CONSTRAINT fato_ipca_brasil_dim_tempo_fk
-        FOREIGN KEY (mes_codigo) REFERENCES silver.dim_tempo (mes_codigo),
-    CONSTRAINT fato_ipca_brasil_dim_variavel_fk
-        FOREIGN KEY (variavel_codigo) REFERENCES silver.dim_variavel (variavel_codigo),
-    CONSTRAINT fato_ipca_brasil_dim_unidade_fk
-        FOREIGN KEY (unidade_medida_codigo) REFERENCES silver.dim_unidade_medida (unidade_medida_codigo)
-);
-
-CREATE TABLE IF NOT EXISTS silver.fato_ipca_regional (
-    mes_codigo INTEGER NOT NULL,
-    variavel_codigo INTEGER NOT NULL,
-    unidade_medida_codigo INTEGER NOT NULL,
-    localidade_codigo INTEGER NOT NULL,
-    classificacao_codigo INTEGER NOT NULL,
-    nivel_territorial_codigo INTEGER NOT NULL,
-    nivel_territorial_nome TEXT NOT NULL,
-    classificacao_nome TEXT NOT NULL,
-    valor NUMERIC(15,6) NOT NULL,
-    source_table INTEGER NOT NULL DEFAULT 7060,
-    loaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fato_ipca_regional_pk
-        PRIMARY KEY (
-            mes_codigo,
-            variavel_codigo,
-            unidade_medida_codigo,
-            localidade_codigo,
-            classificacao_codigo
-        ),
-    CONSTRAINT fato_ipca_regional_source_table_chk
-        CHECK (source_table = 7060),
-    CONSTRAINT fato_ipca_regional_dim_tempo_fk
-        FOREIGN KEY (mes_codigo) REFERENCES silver.dim_tempo (mes_codigo),
-    CONSTRAINT fato_ipca_regional_dim_variavel_fk
-        FOREIGN KEY (variavel_codigo) REFERENCES silver.dim_variavel (variavel_codigo),
-    CONSTRAINT fato_ipca_regional_dim_unidade_fk
-        FOREIGN KEY (unidade_medida_codigo) REFERENCES silver.dim_unidade_medida (unidade_medida_codigo),
-    CONSTRAINT fato_ipca_regional_dim_localidade_fk
-        FOREIGN KEY (localidade_codigo) REFERENCES silver.dim_localidade (localidade_codigo)
+-- Fact table for regional monthly variations
+CREATE TABLE IF NOT EXISTS silver.fact_ipca_monthly_variation_regional (
+    month_code INTEGER NOT NULL,
+    location_id INTEGER NOT NULL,
+    regional_variation NUMERIC(15,6) NOT NULL,
+    loaded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fact_ipca_monthly_variation_regional_dim_month_fk
+        FOREIGN KEY (month_code) REFERENCES silver.dim_month (month_code),
+    CONSTRAINT fact_ipca_monthly_variation_regional_dim_location_fk
+        FOREIGN KEY (location_id) REFERENCES silver.dim_location (location_id),
+    CONSTRAINT fact_ipca_monthly_variation_regional_grain_uk
+        UNIQUE (month_code, location_id) -- Ensures single regional variation per month and location combination
 );
