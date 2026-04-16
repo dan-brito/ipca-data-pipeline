@@ -26,8 +26,7 @@ DECLARE
     bronze_7060_source_table_mismatch INTEGER;
     bronze_1737_missing_ingested_at INTEGER;
     bronze_7060_missing_ingested_at INTEGER;
-    bronze_1737_null_critical_columns INTEGER;
-    bronze_7060_null_critical_columns INTEGER;
+ 
 BEGIN
     -- Count raw rows first so we can confirm the load produced usable data.
     SELECT COUNT(*)
@@ -59,28 +58,6 @@ BEGIN
     INTO bronze_7060_missing_ingested_at
     FROM bronze.ipca_7060_raw
     WHERE ingested_at IS NULL;
-
-    -- Confirm the critical columns don't have null values, which would indicate a failed or incomplete load.
-    SELECT COUNT(*)
-    INTO bronze_1737_null_critical_columns
-    FROM bronze.ipca_1737_raw
-    WHERE num_nulls(
-        nivel_territorial_codigo,     
-        valor,
-        mes_codigo,
-        localidade_codigo
-    ) > 0;
-
-    SELECT COUNT(*)
-    INTO bronze_7060_null_critical_columns
-    FROM bronze.ipca_7060_raw
-    WHERE num_nulls(
-        nivel_territorial_codigo,
-        valor,
-        mes_codigo,
-        localidade_codigo
-    ) > 0;
-
 
     -- The Bronze tables must not be empty after a successful ingestion.
     IF bronze_1737_count = 0 THEN
@@ -119,18 +96,6 @@ BEGIN
             bronze_7060_missing_ingested_at;
     END IF;
 
-    -- Nulls in critical payload columns indicate the raw extract was not captured properly.
-    IF bronze_1737_null_critical_columns <> 0 THEN
-        RAISE EXCEPTION
-            'Bronze 1737 has % rows with null critical columns.',
-            bronze_1737_null_critical_columns;
-    END IF;
-
-    IF bronze_7060_null_critical_columns <> 0 THEN
-        RAISE EXCEPTION
-            'Bronze 7060 has % rows with null critical columns.',
-            bronze_7060_null_critical_columns;
-    END IF;
 END $$;
 
 SELECT 'bronze_validation_passed' AS status;

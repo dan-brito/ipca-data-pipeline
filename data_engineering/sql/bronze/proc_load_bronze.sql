@@ -33,17 +33,17 @@ CREATE TEMP TABLE tmp_7060 (data jsonb);
 -- Load the national series from SIDRA table 1737.
 INSERT INTO bronze.ipca_1737_raw (
     -- Shared SIDRA attributes
-    nivel_territorial_codigo,
-    nivel_territorial_nome,
-    unidade_medida_codigo,
-    unidade_medida_nome,
-    valor,
-    variavel_codigo,
-    variavel_nome,
-    mes_codigo,
-    mes_nome,
-    localidade_codigo,
-    localidade_nome
+    territorial_level_code,
+    territorial_level_name,
+    unit_of_measure_code,
+    unit_of_measure_name,
+    value,
+    variable_code,
+    variable_name,
+    month_code,
+    month_name,
+    location_code,
+    location_name
 )
 SELECT
     NULLIF(elem->>'NC', '')::integer,
@@ -65,21 +65,21 @@ WHERE (elem->>'NC') ~ '^[0-9]+$';
 -- Load the regional series from SIDRA table 7060.
 INSERT INTO bronze.ipca_7060_raw (
     -- Shared SIDRA attributes
-    nivel_territorial_codigo,
-    nivel_territorial_nome,
-    unidade_medida_codigo,
-    unidade_medida_nome,
-    valor,
-    variavel_codigo,
-    variavel_nome,
-    mes_codigo,
-    mes_nome,
-    localidade_codigo,
-    localidade_nome,
+    territorial_level_code,
+    territorial_level_name,
+    unit_of_measure_code,
+    unit_of_measure_name,
+    value,
+    variable_code,
+    variable_name,
+    month_code,
+    month_name,
+    location_code,
+    location_name,
 
     -- Regional-specific fields
-    classificacao_codigo,
-    classificacao_nome
+    classification_code,
+    classification_name
 )
 SELECT
     NULLIF(elem->>'NC', '')::integer,

@@ -5,17 +5,17 @@
 
 CREATE TABLE IF NOT EXISTS bronze.ipca_1737_raw (
     -- Shared SIDRA attributes
-    nivel_territorial_codigo INTEGER,
-    nivel_territorial_nome TEXT,
-    unidade_medida_codigo INTEGER,
-    unidade_medida_nome TEXT,
-    valor NUMERIC(15,6),
-    variavel_codigo INTEGER,
-    variavel_nome TEXT,
-    mes_codigo INTEGER,
-    mes_nome TEXT,
-    localidade_codigo INTEGER,
-    localidade_nome TEXT,
+    territorial_level_code INTEGER,
+    territorial_level_name TEXT,
+    unit_of_measure_code INTEGER,
+    unit_of_measure_name TEXT,
+    value NUMERIC(15,6),
+    variable_code INTEGER,
+    variable_name TEXT,
+    month_code INTEGER,
+    month_name TEXT,
+    location_code INTEGER,
+    location_name TEXT,
 
     -- Lineage metadata
     source_table INTEGER DEFAULT 1737,
@@ -24,21 +24,21 @@ CREATE TABLE IF NOT EXISTS bronze.ipca_1737_raw (
 
 CREATE TABLE IF NOT EXISTS bronze.ipca_7060_raw (
     -- Shared SIDRA attributes
-    nivel_territorial_codigo INTEGER,
-    nivel_territorial_nome TEXT,
-    unidade_medida_codigo INTEGER,
-    unidade_medida_nome TEXT,
-    valor NUMERIC(15,6),
-    variavel_codigo INTEGER,
-    variavel_nome TEXT,
-    mes_codigo INTEGER,
-    mes_nome TEXT,
-    localidade_codigo INTEGER,
-    localidade_nome TEXT,
+    territorial_level_code INTEGER,
+    territorial_level_name TEXT,
+    unit_of_measure_code INTEGER,
+    unit_of_measure_name TEXT,
+    value NUMERIC(15,6),
+    variable_code INTEGER,
+    variable_name TEXT,
+    month_code INTEGER,
+    month_name TEXT,
+    location_code INTEGER,
+    location_name TEXT,
 
     -- Regional-specific fields
-    classificacao_codigo INTEGER,
-    classificacao_nome TEXT,
+    classification_code INTEGER,
+    classification_name TEXT,
 
     -- Lineage metadata
     source_table INTEGER DEFAULT 7060,
