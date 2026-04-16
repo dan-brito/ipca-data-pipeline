@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS silver.fact_ipca_index_number_brazil (
 CREATE TABLE IF NOT EXISTS silver.fact_ipca_monthly_variation_regional (
     month_code INTEGER NOT NULL,
     location_id INTEGER NOT NULL,
-    regional_variation NUMERIC(15,6) NOT NULL,
+    monthly_variation NUMERIC(15,6) NOT NULL,
     loaded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fact_ipca_monthly_variation_regional_dim_month_fk
         FOREIGN KEY (month_code) REFERENCES silver.dim_month (month_code),
