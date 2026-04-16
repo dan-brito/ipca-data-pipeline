@@ -73,21 +73,14 @@ INSERT INTO silver.fact_ipca_index_number_brazil (
     location_id, 
     index_number)
 SELECT
-    src.month_code,
-    src.location_id,
-    src.index_number
-FROM (
-    SELECT
-    bronze.ipca_1737_raw.month_code,
+    month_code,
+    location_id,
+    value AS index_number
     -- Facts store the surrogate key from `dim_location`, not the raw Bronze location code.
-    sdl.location_id,
-    bronze.ipca_1737_raw.value AS index_number
-    FROM bronze.ipca_1737_raw
-    LEFT JOIN silver.dim_location AS sdl
-    ON bronze.ipca_1737_raw.territorial_level_code = sdl.territorial_level_code
-    AND bronze.ipca_1737_raw.location_code = sdl.location_code   
-) AS src;
-
+FROM bronze.ipca_1737_raw bir
+    LEFT JOIN silver.dim_location sdl
+    ON bir.territorial_level_code = sdl.territorial_level_code
+    AND bir.location_code = sdl.location_code; 
 
 -- Load the regional monthly variation fact from Bronze table 7060 using the same location mapping.
 INSERT INTO silver.fact_ipca_monthly_variation_regional (
@@ -95,19 +88,13 @@ INSERT INTO silver.fact_ipca_monthly_variation_regional (
     location_id, 
     monthly_variation)
 SELECT
-    src.month_code,
-    src.location_id,
-    src.monthly_variation
-FROM (
-    SELECT
-    bronze.ipca_7060_raw.month_code,
-    -- Resolve the shared `dim_location` surrogate key before inserting the regional fact rows.
-    sdl.location_id,
-    bronze.ipca_7060_raw.value AS monthly_variation
-    FROM bronze.ipca_7060_raw
-    LEFT JOIN silver.dim_location AS sdl
-    ON bronze.ipca_7060_raw.territorial_level_code = sdl.territorial_level_code
-    AND bronze.ipca_7060_raw.location_code = sdl.location_code
-) AS src;
+    month_code,
+    location_id,
+    value AS monthly_variation
+-- Resolve the shared `dim_location` surrogate key before inserting the regional fact rows.
+FROM bronze.ipca_7060_raw bir
+    LEFT JOIN silver.dim_location sdl
+    ON bir.territorial_level_code = sdl.territorial_level_code
+    AND bir.location_code = sdl.location_code;
 
 COMMIT;
