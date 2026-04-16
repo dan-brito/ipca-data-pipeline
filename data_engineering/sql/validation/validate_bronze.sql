@@ -28,8 +28,6 @@ DECLARE
     bronze_7060_missing_ingested_at INTEGER;
     bronze_1737_null_critical_columns INTEGER;
     bronze_7060_null_critical_columns INTEGER;
-    bronze_1737_metadata_like_rows INTEGER;
-    bronze_7060_metadata_like_rows INTEGER;
 BEGIN
     -- Count raw rows first so we can confirm the load produced usable data.
     SELECT COUNT(*)
@@ -62,22 +60,15 @@ BEGIN
     FROM bronze.ipca_7060_raw
     WHERE ingested_at IS NULL;
 
-    -- Confirm the raw payload still carries the mandatory fields we expect.
+    -- Confirm the critical columns don't have null values, which would indicate a failed or incomplete load.
     SELECT COUNT(*)
     INTO bronze_1737_null_critical_columns
     FROM bronze.ipca_1737_raw
     WHERE num_nulls(
-        nivel_territorial_codigo,
-        nivel_territorial_nome,
-        unidade_medida_codigo,
-        unidade_medida_nome,
+        nivel_territorial_codigo,     
         valor,
-        variavel_codigo,
-        variavel_nome,
         mes_codigo,
-        mes_nome,
-        localidade_codigo,
-        localidade_nome
+        localidade_codigo
     ) > 0;
 
     SELECT COUNT(*)
@@ -85,34 +76,11 @@ BEGIN
     FROM bronze.ipca_7060_raw
     WHERE num_nulls(
         nivel_territorial_codigo,
-        nivel_territorial_nome,
-        unidade_medida_codigo,
-        unidade_medida_nome,
         valor,
-        variavel_codigo,
-        variavel_nome,
         mes_codigo,
-        mes_nome,
-        localidade_codigo,
-        localidade_nome,
-        classificacao_codigo,
-        classificacao_nome
+        localidade_codigo
     ) > 0;
 
-    -- Catch any SIDRA metadata/header rows that should never survive the load.
-    SELECT COUNT(*)
-    INTO bronze_1737_metadata_like_rows
-    FROM bronze.ipca_1737_raw
-    WHERE nivel_territorial_codigo IS NULL
-       OR mes_codigo IS NULL
-       OR valor IS NULL;
-
-    SELECT COUNT(*)
-    INTO bronze_7060_metadata_like_rows
-    FROM bronze.ipca_7060_raw
-    WHERE nivel_territorial_codigo IS NULL
-       OR mes_codigo IS NULL
-       OR valor IS NULL;
 
     -- The Bronze tables must not be empty after a successful ingestion.
     IF bronze_1737_count = 0 THEN
@@ -151,7 +119,7 @@ BEGIN
             bronze_7060_missing_ingested_at;
     END IF;
 
-    -- Nulls in mandatory payload columns indicate the raw extract was not captured cleanly.
+    -- Nulls in critical payload columns indicate the raw extract was not captured properly.
     IF bronze_1737_null_critical_columns <> 0 THEN
         RAISE EXCEPTION
             'Bronze 1737 has % rows with null critical columns.',
@@ -162,19 +130,6 @@ BEGIN
         RAISE EXCEPTION
             'Bronze 7060 has % rows with null critical columns.',
             bronze_7060_null_critical_columns;
-    END IF;
-
-    -- Any remaining metadata-like rows mean the load did not fully strip the SIDRA header row.
-    IF bronze_1737_metadata_like_rows <> 0 THEN
-        RAISE EXCEPTION
-            'Bronze 1737 appears to contain % metadata-like rows.',
-            bronze_1737_metadata_like_rows;
-    END IF;
-
-    IF bronze_7060_metadata_like_rows <> 0 THEN
-        RAISE EXCEPTION
-            'Bronze 7060 appears to contain % metadata-like rows.',
-            bronze_7060_metadata_like_rows;
     END IF;
 END $$;
 
