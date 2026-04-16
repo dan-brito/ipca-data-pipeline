@@ -10,3 +10,7 @@ data/bronze/*
 
 # OS
 .DS_Store
+
+# Local-only project notes
+project_context.md
+project_context.md:Zone.Identifier
