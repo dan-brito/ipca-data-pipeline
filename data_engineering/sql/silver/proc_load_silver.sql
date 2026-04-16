@@ -1,156 +1,113 @@
 \set ON_ERROR_STOP on
 
+-- Silver load script for the curated IPCA warehouse layer.
+-- Bronze table 1737 feeds the national index fact and contributes shared dimensions.
+-- Bronze table 7060 feeds the regional monthly variation fact and contributes shared dimensions.
+-- The script performs a full refresh of the Silver dimensions and facts in one transaction.
+-- `RESTART IDENTITY` is intentional so `silver.dim_location` keeps deterministic surrogate keys.
+
+-- Rebuild the Silver layer atomically so dimensions and facts stay in sync.
 BEGIN;
 
+-- Clear the current Silver contents before repopulating them from Bronze.
+-- Resetting identities here preserves a stable `location_id` sequence on every reload.
 TRUNCATE TABLE
-    silver.fato_ipca_regional,
-    silver.fato_ipca_brasil,
-    silver.dim_localidade,
-    silver.dim_unidade_medida,
-    silver.dim_variavel,
-    silver.dim_tempo;
+    silver.fact_ipca_monthly_variation_regional,
+    silver.fact_ipca_index_number_brazil,
+    silver.dim_location,
+    silver.dim_month
+RESTART IDENTITY;
 
-INSERT INTO silver.dim_tempo (
-    mes_codigo,
-    mes_data,
-    ano,
-    mes_numero,
-    mes_nome
-)
-SELECT DISTINCT
-    src.mes_codigo,
-    TO_DATE(src.mes_codigo::text, 'YYYYMM') AS mes_data,
-    (src.mes_codigo / 100) AS ano,
-    (src.mes_codigo % 100) AS mes_numero,
-    src.mes_nome
-FROM (
-    SELECT mes_codigo, mes_nome
-    FROM bronze.ipca_1737_raw
-    WHERE mes_codigo IS NOT NULL
-      AND mes_nome IS NOT NULL
-    UNION
-    SELECT mes_codigo, mes_nome
-    FROM bronze.ipca_7060_raw
-    WHERE mes_codigo IS NOT NULL
-      AND mes_nome IS NOT NULL
-) AS src
-ORDER BY src.mes_codigo;
-
-INSERT INTO silver.dim_variavel (
-    variavel_codigo,
-    variavel_nome
-)
-SELECT DISTINCT
-    src.variavel_codigo,
-    src.variavel_nome
-FROM (
-    SELECT variavel_codigo, variavel_nome
-    FROM bronze.ipca_1737_raw
-    WHERE variavel_codigo IS NOT NULL
-      AND variavel_nome IS NOT NULL
-    UNION
-    SELECT variavel_codigo, variavel_nome
-    FROM bronze.ipca_7060_raw
-    WHERE variavel_codigo IS NOT NULL
-      AND variavel_nome IS NOT NULL
-) AS src
-ORDER BY src.variavel_codigo;
-
-INSERT INTO silver.dim_unidade_medida (
-    unidade_medida_codigo,
-    unidade_medida_nome
-)
-SELECT DISTINCT
-    src.unidade_medida_codigo,
-    src.unidade_medida_nome
-FROM (
-    SELECT unidade_medida_codigo, unidade_medida_nome
-    FROM bronze.ipca_1737_raw
-    WHERE unidade_medida_codigo IS NOT NULL
-      AND unidade_medida_nome IS NOT NULL
-    UNION
-    SELECT unidade_medida_codigo, unidade_medida_nome
-    FROM bronze.ipca_7060_raw
-    WHERE unidade_medida_codigo IS NOT NULL
-      AND unidade_medida_nome IS NOT NULL
-) AS src
-ORDER BY src.unidade_medida_codigo;
-
-INSERT INTO silver.dim_localidade (
-    localidade_codigo,
-    localidade_nome
-)
-SELECT DISTINCT
-    localidade_codigo,
-    localidade_nome
-FROM bronze.ipca_7060_raw
-WHERE localidade_codigo IS NOT NULL
-  AND localidade_nome IS NOT NULL
-ORDER BY localidade_codigo;
-
-INSERT INTO silver.fato_ipca_brasil (
-    mes_codigo,
-    variavel_codigo,
-    unidade_medida_codigo,
-    nivel_territorial_codigo,
-    nivel_territorial_nome,
-    brasil_codigo,
-    brasil_nome,
-    valor,
-    source_table
-)
+-- Build the month dimension from every distinct month present in either Bronze source.
+INSERT INTO silver.dim_month(
+    month_code,
+    month_date)
 SELECT
-    mes_codigo,
-    variavel_codigo,
-    unidade_medida_codigo,
-    nivel_territorial_codigo,
-    nivel_territorial_nome,
-    brasil_codigo,
-    brasil_nome,
-    valor,
-    source_table
-FROM bronze.ipca_1737_raw
-WHERE mes_codigo IS NOT NULL
-  AND variavel_codigo IS NOT NULL
-  AND unidade_medida_codigo IS NOT NULL
-  AND nivel_territorial_codigo IS NOT NULL
-  AND nivel_territorial_nome IS NOT NULL
-  AND brasil_codigo IS NOT NULL
-  AND brasil_nome IS NOT NULL
-  AND valor IS NOT NULL;
+    src.month_code,
+    -- `month_code` arrives as `YYYYMM`, so `TO_DATE` maps it to the first day of that month.
+    TO_DATE(src.month_code::text, 'YYYYMM') AS month_date
+FROM (
+    -- `UNION` keeps one row per month even when both Bronze tables contain the same period.
+    SELECT month_code
+    FROM bronze.ipca_1737_raw
+    UNION
+    SELECT month_code
+    FROM bronze.ipca_7060_raw
+) AS src
+ORDER BY src.month_code;
 
-INSERT INTO silver.fato_ipca_regional (
-    mes_codigo,
-    variavel_codigo,
-    unidade_medida_codigo,
-    localidade_codigo,
-    classificacao_codigo,
-    nivel_territorial_codigo,
-    nivel_territorial_nome,
-    classificacao_nome,
-    valor,
-    source_table
-)
+-- Build the location dimension from the distinct location attributes in both Bronze sources.
+INSERT INTO silver.dim_location (
+    location_code,
+    location_name, 
+    territorial_level_code,
+    territorial_level_name)
 SELECT
-    mes_codigo,
-    variavel_codigo,
-    unidade_medida_codigo,
-    localidade_codigo,
-    classificacao_codigo,
-    nivel_territorial_codigo,
-    nivel_territorial_nome,
-    classificacao_nome,
-    valor,
-    source_table
-FROM bronze.ipca_7060_raw
-WHERE mes_codigo IS NOT NULL
-  AND variavel_codigo IS NOT NULL
-  AND unidade_medida_codigo IS NOT NULL
-  AND localidade_codigo IS NOT NULL
-  AND classificacao_codigo IS NOT NULL
-  AND nivel_territorial_codigo IS NOT NULL
-  AND nivel_territorial_nome IS NOT NULL
-  AND classificacao_nome IS NOT NULL
-  AND valor IS NOT NULL;
+    src.location_code,
+    src.location_name,
+    src.territorial_level_code,
+    src.territorial_level_name
+FROM (
+    -- `UNION` removes duplicate location definitions shared across the two extracts.
+    SELECT
+    location_code,
+    location_name, 
+    territorial_level_code,
+    territorial_level_name
+    FROM bronze.ipca_1737_raw
+    UNION
+    SELECT
+    location_code,
+    location_name,
+    territorial_level_code,
+    territorial_level_name
+    FROM bronze.ipca_7060_raw
+) AS src
+ORDER BY
+    src.territorial_level_code,
+    src.location_code;
+
+-- Load the Brazil index fact from Bronze table 1737 after resolving the location surrogate key.
+INSERT INTO silver.fact_ipca_index_number_brazil (
+    month_code,
+    location_id, 
+    index_number)
+SELECT
+    src.month_code,
+    src.location_id,
+    src.index_number
+FROM (
+    SELECT
+    bronze.ipca_1737_raw.month_code,
+    -- Facts store the surrogate key from `dim_location`, not the raw Bronze location code.
+    sdl.location_id,
+    bronze.ipca_1737_raw.value AS index_number
+    FROM bronze.ipca_1737_raw
+    LEFT JOIN silver.dim_location AS sdl
+    ON bronze.ipca_1737_raw.territorial_level_code = sdl.territorial_level_code
+    AND bronze.ipca_1737_raw.location_code = sdl.location_code   
+) AS src;
+
+
+-- Load the regional monthly variation fact from Bronze table 7060 using the same location mapping.
+INSERT INTO silver.fact_ipca_monthly_variation_regional (
+    month_code,
+    location_id, 
+    monthly_variation)
+SELECT
+    src.month_code,
+    src.location_id,
+    src.monthly_variation
+FROM (
+    SELECT
+    bronze.ipca_7060_raw.month_code,
+    -- Resolve the shared `dim_location` surrogate key before inserting the regional fact rows.
+    sdl.location_id,
+    bronze.ipca_7060_raw.value AS monthly_variation
+    FROM bronze.ipca_7060_raw
+    LEFT JOIN silver.dim_location AS sdl
+    ON bronze.ipca_7060_raw.territorial_level_code = sdl.territorial_level_code
+    AND bronze.ipca_7060_raw.location_code = sdl.location_code
+) AS src;
 
 COMMIT;
