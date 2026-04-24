@@ -54,6 +54,7 @@ SELECT
     monthly_variation,
     'brazil_derived_from_index' AS source_type
 FROM gold.vw_ipca_brazil_monthly_variation
+WHERE monthly_variation IS NOT NULL
 
 UNION ALL
 SELECT
